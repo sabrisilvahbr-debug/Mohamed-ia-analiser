@@ -1,0 +1,30 @@
+# Produção na VM Oracle: app + Caddy (HTTPS automático via Let's Encrypt)
+services:
+  app:
+    build:
+      context: ../..
+    restart: unless-stopped
+    env_file:
+      - /opt/otc-secrets/app.env
+    volumes:
+      - otc-data:/app/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${OTC_DOMAIN} --to app:8080
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  otc-data:
+  caddy-data:
+  caddy-config:
