@@ -19,8 +19,14 @@ export function contractOffered(contracts: readonly ContractAvailable[], contrac
   const sameType = contracts.filter((c) => c.contract_type === contractType);
   if (!sameType.length) return { ok: false, reason: `${contractType} não consta em contracts_for` };
   const expiry = unit === 't' ? 'tick' : 'intraday';
-  const candidates = sameType.filter((c) => c.expiry_type === expiry && c.barriers === 0);
-  if (!candidates.length) return { ok: false, reason: `${contractType} sem expiração "${expiry}" sem barreira` };
+  const withExpiry = sameType.filter((c) => c.expiry_type === expiry);
+  if (!withExpiry.length) return { ok: false, reason: `${contractType} sem expiração "${expiry}" em contracts_for` };
+  // Rise/Fall = sem barreira. Aceita 0 numérico ou "0" (robustez ao formato recebido).
+  const candidates = withExpiry.filter((c) => Number(c.barriers) === 0);
+  if (!candidates.length) {
+    const seen = [...new Set(withExpiry.map((c) => `${c.contract_category}/barriers=${JSON.stringify(c.barriers)}`))].join(', ');
+    return { ok: false, reason: `${contractType} "${expiry}" só oferecido com barreira (${seen}) — o sistema opera apenas Rise/Fall sem barreira` };
+  }
   for (const c of candidates) {
     const min = parseDuration(c.min_contract_duration);
     const max = parseDuration(c.max_contract_duration);

@@ -299,7 +299,7 @@ function renderMarket(s) {
   }
   const info = m.symbolInfo;
   const status = info ? `mercado ${info.exchange_is_open ? 'aberto' : 'fechado'}${info.is_trading_suspended ? ', negociação suspensa' : ''}` : 'símbolo não confirmado em active_symbols';
-  const ct = m.contracts.length ? m.contracts.map((c) => `${c.contract_type} ${c.expiry_type} ${c.min}–${c.max}`).join(' | ') : 'nenhum CALL/PUT consultado';
+  const ct = m.contracts.length ? m.contracts.map((c) => `${c.contract_type} ${c.expiry_type} ${c.min}–${c.max}${Number(c.barriers) ? ' (barreira)' : ''}`).join(' | ') : 'nenhum CALL/PUT consultado';
   $('#mk-src').textContent = `Fonte: Deriv ${t?.source === 'deriv:ticks' ? 'ticks (ao vivo)' : t ? 'ticks_history' : '—'} • ${status} • contracts_for (${m.contractsSource ?? '—'}): ${ct}`;
   drawChart($('#chart'), m.ticks);
 }
