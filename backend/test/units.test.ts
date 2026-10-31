@@ -227,3 +227,11 @@ test('ALLOWED_ORIGINS: normaliza e exige https', () => {
   assert.deepEqual(parseOrigins(null), []);
   assert.throws(() => parseOrigins('http://a.pages.dev'), /https/);
 });
+
+test('contractOffered aceita barriers "0" e explica quando só há contratos com barreira', () => {
+  const base = { contract_category: 'callput', contract_type: 'PUT', expiry_type: 'tick', market: 'synthetic_index', max_contract_duration: '10t', min_contract_duration: '1t', sentiment: 'down', submarket: 'random_index', underlying_symbol: 'R_100' };
+  assert.equal(contractOffered([{ ...base, barriers: '0' as unknown as number }], 'PUT', 5, 't').ok, true);
+  const r = contractOffered([{ ...base, barriers: 1 }], 'PUT', 5, 't');
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /barriers=1/);
+});
