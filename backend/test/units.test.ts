@@ -8,7 +8,7 @@ import { checkRisk, type RiskContext } from '../src/agents/risk.ts';
 import { checkSettlement, matchStatement } from '../src/agents/portfolio.ts';
 import { normalizeTick } from '../src/agents/marketData.ts';
 import { analyze } from '../src/agents/analyzer.ts';
-import { modeFromWsUrl } from '../src/deriv/auth.ts';
+import { modeFromWsUrl, pickDemoAccount } from '../src/deriv/auth.ts';
 import { redact, registerSecret } from '../src/logger.ts';
 import { parseOrigins } from '../src/config.ts';
 import type { TradeRow } from '../src/db.ts';
@@ -234,4 +234,12 @@ test('contractOffered aceita barriers "0" e explica quando só há contratos com
   const r = contractOffered([{ ...base, barriers: 1 }], 'PUT', 5, 't');
   assert.equal(r.ok, false);
   assert.match(r.reason, /barriers=1/);
+});
+
+test('pickDemoAccount escolhe só conta demo ativa, nunca real', () => {
+  const real = { account_id: 'CR1', account_type: 'real', status: 'active', currency: 'USD' };
+  const demoOff = { account_id: 'DOT1', account_type: 'demo', status: 'disabled', currency: 'USD' };
+  const demo = { account_id: 'DOT2', account_type: 'demo', status: 'active', currency: 'USD' };
+  assert.equal(pickDemoAccount([real, demoOff, demo])?.account_id, 'DOT2');
+  assert.equal(pickDemoAccount([real]), null);
 });

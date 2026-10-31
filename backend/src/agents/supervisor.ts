@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { AppConfig } from '../config.ts';
 import { hasDerivCredentials } from '../config.ts';
 import { DerivSocket, type WsFactory } from '../deriv/client.ts';
-import { listAccounts, modeFromWsUrl, requestOtpUrl, type AccountMode } from '../deriv/auth.ts';
+import { fetchAccounts, listAccounts, modeFromWsUrl, pickDemoAccount, requestOtpUrl, type AccountMode } from '../deriv/auth.ts';
 import type { DesiredState, Store } from '../db.ts';
 import { mergeAndValidate, type Settings } from '../settings.ts';
 import { evaluate, type Analysis, type Decision } from '../strategies/engine.ts';
@@ -48,6 +48,8 @@ export class Supervisor extends EventEmitter {
   status: EngineStatus;
   settings: Settings;
   accountMode: AccountMode | null = null;
+  /** DERIV_ACCOUNT_ID ou a conta demo descoberta automaticamente */
+  accountId: string | null = null;
   lastAnalysis: Analysis | null = null;
   lastDecision: (Decision & { at: string; tickEpoch: number }) | null = null;
   lastRisk: RiskVerdict | null = null;
@@ -69,6 +71,7 @@ export class Supervisor extends EventEmitter {
     this.audit = new AuditAgent(d.store, this.registry);
     this.settings = d.store.getSettings();
     this.status = d.store.getDesired();
+    this.accountId = d.config.deriv.accountId;
 
     this.pub = new DerivSocket({ name: 'public', urlProvider: async () => this.cfg.deriv.publicWs, wsFactory: d.wsFactory, requestTimeoutMs: d.requestTimeoutMs, backoffMs: d.backoffMs });
     this.market = new MarketDataAgent(this.pub, this.registry, this.audit, this.settings.symbol);
@@ -76,11 +79,17 @@ export class Supervisor extends EventEmitter {
     this.execution = new ExecutionEngine(d.store, this.registry, this.audit, d.buyTimeoutMs);
 
     if (hasDerivCredentials(this.cfg)) {
-      const c = { restBase: this.cfg.deriv.restBase, appId: this.cfg.deriv.appId!, pat: this.cfg.deriv.pat!, accountId: this.cfg.deriv.accountId! };
+      const c = { restBase: this.cfg.deriv.restBase, appId: this.cfg.deriv.appId!, pat: this.cfg.deriv.pat! };
       this.auth = new DerivSocket({
         name: 'account',
         urlProvider: async () => {
-          const url = await requestOtpUrl(c, this.fetchImpl);
+          if (!this.accountId) {
+            const demo = pickDemoAccount(await fetchAccounts(c, this.fetchImpl));
+            if (!demo) throw new Error('nenhuma conta DEMO encontrada em GET /accounts — informe DERIV_ACCOUNT_ID');
+            this.accountId = demo.account_id;
+            this.audit.record('info', 'supervisor', 'account_discovered', `Conta demo ${demo.account_id} encontrada automaticamente (GET /accounts)`);
+          }
+          const url = await requestOtpUrl({ ...c, accountId: this.accountId }, this.fetchImpl);
           this.accountMode = modeFromWsUrl(url);
           return url;
         },
@@ -318,12 +327,12 @@ export class Supervisor extends EventEmitter {
     checks.push({ name: 'Cotações ao vivo', ok: age !== null && age < 15000, detail: age === null ? 'nenhuma recebida' : `última há ${(age / 1000).toFixed(1)} s` });
     checks.push({ name: `Símbolo ${this.settings.symbol} em active_symbols`, ok: Boolean(this.market.symbolInfo), detail: this.market.symbolInfo ? `${this.market.symbolInfo.underlying_symbol_name} (${this.market.symbolInfo.market})` : `${this.market.symbols.length} símbolos consultados` });
     checks.push({ name: 'contracts_for', ok: this.market.contracts.length > 0, detail: `${this.market.contracts.length} contratos (${this.market.contractsSource ?? 'não consultado'})` });
-    checks.push({ name: 'Credenciais Deriv (APP_ID, PAT, ACCOUNT_ID)', ok: Boolean(this.auth), detail: this.auth ? 'configuradas no servidor' : 'ausentes — apenas dados públicos' });
+    checks.push({ name: 'Credenciais Deriv (DERIV_APP_ID, DERIV_PAT)', ok: Boolean(this.auth), detail: this.auth ? `configuradas no servidor; conta ${this.accountId ?? 'ainda não identificada'}${this.cfg.deriv.accountId ? ' (DERIV_ACCOUNT_ID)' : ' (descoberta automática)'}` : 'ausentes — apenas dados públicos' });
     if (this.auth) {
       checks.push({ name: 'Canal autenticado (OTP)', ok: this.auth.isOpen(), detail: `${this.auth.status}, conta ${this.accountMode ?? '?'}${this.auth.lastError ? ' — ' + this.auth.lastError : ''}` });
       checks.push({ name: 'Saldo recebido', ok: Boolean(this.portfolio.account), detail: this.portfolio.account ? `${this.portfolio.account.balance} ${this.portfolio.account.currency} em ${this.portfolio.account.receivedAt}` : 'não' });
       try {
-        const r = await listAccounts({ restBase: this.cfg.deriv.restBase, appId: this.cfg.deriv.appId!, pat: this.cfg.deriv.pat!, accountId: this.cfg.deriv.accountId! }, this.fetchImpl);
+        const r = await listAccounts({ restBase: this.cfg.deriv.restBase, appId: this.cfg.deriv.appId!, pat: this.cfg.deriv.pat! }, this.fetchImpl);
         checks.push({ name: 'REST GET /accounts', ok: r.ok, detail: r.summary });
       } catch (e) {
         checks.push({ name: 'REST GET /accounts', ok: false, detail: (e as Error).message });

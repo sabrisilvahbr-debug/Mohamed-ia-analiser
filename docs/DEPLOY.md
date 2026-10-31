@@ -8,7 +8,7 @@
 | `DB_PATH` | não | Caminho do SQLite. Use um volume persistente. Padrão `./data/trader.db` |
 | `DERIV_APP_ID` | p/ conta | App ID registrado no painel de desenvolvedor da Deriv |
 | `DERIV_PAT` | p/ conta | Personal Access Token com escopo `trade` |
-| `DERIV_ACCOUNT_ID` | p/ conta | ID da conta Options (ex.: conta demo `DOT…`) |
+| `DERIV_ACCOUNT_ID` | não | ID da conta Options. Vazio = descobre a conta **demo** via `GET /accounts` (nunca escolhe conta real) |
 | `ALLOW_REAL_TRADING` | não | `false` (padrão). Somente `true` libera o modo REAL, que ainda exige confirmação no painel |
 | `PORT` | não | Porta HTTP (padrão 8080) |
 
@@ -43,7 +43,7 @@ O mesmo motor (agentes, risco, Deriv, banco) roda num **Durable Object** do Clou
 2. Mantenha **Deploy command** `npx wrangler deploy` e o **Build command** vazio → **Deploy**.
 3. No Worker criado: **Settings → Variables and Secrets → Add**, tipo **Secret**:
    - `ADMIN_TOKEN` — senha do painel (≥ 16 caracteres) — obrigatório
-   - `DERIV_APP_ID`, `DERIV_PAT` (escopo Trade), `DERIV_ACCOUNT_ID` (conta **demo**) — para saldo e ordens
+   - `DERIV_APP_ID` e `DERIV_PAT` (escopo `trade`) — para saldo e ordens. `DERIV_ACCOUNT_ID` é opcional: sem ele, a conta **demo** é descoberta automaticamente.
 4. Abra `https://mohamed-ia-analiser.<seu-subdominio>.workers.dev`, entre com a senha e confira o **DIAGNÓSTICO**.
 
 Cada push na `main` publica de novo automaticamente.

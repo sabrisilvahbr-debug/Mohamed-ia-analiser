@@ -10,7 +10,7 @@
 PAINEL_SENHA=""        # senha do painel, mínimo 16 caracteres (você escolhe)
 DERIV_APP_ID=""        # opcional — vazio = só cotações públicas, sem saldo/ordens
 DERIV_PAT=""           # opcional — token pessoal da Deriv com escopo "trade"
-DERIV_ACCOUNT_ID=""    # opcional — ID da conta DEMO (ex.: DOT...)
+DERIV_ACCOUNT_ID=""    # opcional — vazio = conta DEMO descoberta automaticamente
 # Nome secreto do canal onde o link trycloudflare será publicado.
 # Abra https://ntfy.sh/SEU_CANAL no Safari (ou no app ntfy) para ver o link atual.
 # Use algo difícil de adivinhar, ex.: mohamed-otc-7f3k9q2z

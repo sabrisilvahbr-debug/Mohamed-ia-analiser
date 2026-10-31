@@ -115,7 +115,7 @@ export class MockDeriv {
     }
     if (req.method === 'GET' && req.url === '/trading/v1/options/accounts') {
       res.writeHead(authOk ? 200 : 401, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(authOk ? { data: [{ account_id: this.loginid }] } : { errors: [{ code: 'Unauthorized', message: 'x' }] }));
+      res.end(JSON.stringify(authOk ? { data: [{ account_id: 'CRO1234567', balance: 0, currency: 'USD', group: 'row', status: 'active', account_type: 'real' }, { account_id: this.loginid, balance: this.balance, currency: 'USD', group: 'row', status: 'active', account_type: 'demo' }] } : { errors: [{ code: 'Unauthorized', message: 'x' }] }));
       return;
     }
     res.writeHead(404); res.end();
