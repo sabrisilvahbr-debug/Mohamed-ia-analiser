@@ -121,6 +121,20 @@ export function createServer(cfg: AppConfig, store: Store, sup: Supervisor): htt
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
+    // CORS somente para origens explicitamente autorizadas (ALLOWED_ORIGINS)
+    const origin = req.headers.origin;
+    if (origin && cfg.allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+      res.setHeader('Access-Control-Max-Age', '600');
+    }
+    if (req.method === 'OPTIONS') {
+      res.writeHead(origin && cfg.allowedOrigins.includes(origin) ? 204 : 403);
+      res.end();
+      return;
+    }
     const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || req.socket.remoteAddress || '?';
     try {
       // ---------------- health checks (públicos, sem dados sensíveis)

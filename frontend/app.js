@@ -18,9 +18,26 @@ const STATE_PT = { PROPOSAL_REQUESTED: 'proposta pedida', PROPOSAL_RECEIVED: 'pr
 
 // ---------------------------------------------------------------- autenticação
 let token = localStorage.getItem('otc.admin') || sessionStorage.getItem('otc.admin') || '';
+// Endereço do motor. Vazio = mesmo servidor que entregou o painel.
+// No Cloudflare Pages o painel é estático e o motor roda na VM (ex.: https://129-1-2-3.sslip.io).
+let server = localStorage.getItem('otc.server') || '';
+const base = () => server;
+
+function normalizeServer(raw) {
+  const t = raw.trim().replace(/\/+$/, '');
+  if (!t) return '';
+  const u = new URL(/^https?:\/\//.test(t) ? t : 'https://' + t);
+  if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') throw new Error('Use um endereço https://');
+  return u.origin;
+}
+
+/** O painel foi entregue pelo próprio motor? (então não precisa pedir o endereço) */
+async function sameOriginEngine() {
+  try { const r = await fetch('/health', { cache: 'no-store' }); if (!r.ok) return false; const j = await r.json(); return j && j.ok === true; } catch { return false; }
+}
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, { ...opts, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const res = await fetch(base() + path, { ...opts, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
   if (res.status === 401) { logout('Sessão inválida. Entre novamente.'); throw new Error('não autorizado'); }
   const body = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) { const err = new Error(body?.error || `HTTP ${res.status}`); err.issues = body?.issues; throw err; }
@@ -39,14 +56,19 @@ $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const t = $('#login-token').value.trim();
   token = t;
+  if (!$('#login-server-wrap').hidden) {
+    try { server = normalizeServer($('#login-server').value); } catch (err) { $('#login-error').textContent = err.message; return; }
+    if (!server) { $('#login-error').textContent = 'Informe o endereço do motor.'; return; }
+  }
   try {
-    const r = await fetch('/api/state', { headers: { Authorization: `Bearer ${t}` } });
+    const r = await fetch(base() + '/api/state', { headers: { Authorization: `Bearer ${t}` } });
     if (r.status === 503) { $('#login-error').textContent = (await r.json()).error; return; }
     if (!r.ok) { $('#login-error').textContent = r.status === 429 ? 'Muitas tentativas. Aguarde 1 minuto.' : 'Token inválido.'; return; }
     ($('#login-remember').checked ? localStorage : sessionStorage).setItem('otc.admin', t);
+    if (server) localStorage.setItem('otc.server', server); else localStorage.removeItem('otc.server');
     $('#login-token').value = '';
     boot(await r.json());
-  } catch { $('#login-error').textContent = 'Servidor inacessível.'; }
+  } catch { $('#login-error').textContent = `Motor inacessível${server ? ' em ' + server : ''}. Verifique o endereço e se a VM está ligada.`; }
 });
 
 // ---------------------------------------------------------------- 3D
@@ -119,7 +141,7 @@ async function stream() {
   while (token) {
     streamAbort = new AbortController();
     try {
-      const res = await fetch('/api/stream', { headers: { Authorization: `Bearer ${token}` }, signal: streamAbort.signal });
+      const res = await fetch(base() + '/api/stream', { headers: { Authorization: `Bearer ${token}` }, signal: streamAbort.signal });
       if (res.status === 401) return logout('Sessão inválida.');
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       streamOk = true; delay = 1000; renderStreamPill();
@@ -482,6 +504,11 @@ function boot(initial) {
 }
 
 (async () => {
-  if (!token) { $('#login').hidden = false; return; }
+  const same = await sameOriginEngine();
+  if (same) server = '';
+  $('#login-server-wrap').hidden = same;
+  $('#login-server').value = server;
+  $('#where').textContent = same ? '' : (server ? `Motor: ${server}` : '');
+  if (!token || (!same && !server)) { $('#login').hidden = false; return; }
   try { boot(await api('/api/state')); } catch { if (token) { $('#login').hidden = false; $('#login-error').textContent = 'Servidor indisponível no momento.'; } }
 })();

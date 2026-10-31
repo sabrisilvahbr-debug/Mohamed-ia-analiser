@@ -137,3 +137,6 @@ label.check input { width: auto; }
   .controls .btn.ghost { font-size: 11px; padding: 10px 6px; }
   .stage { height: min(46vh, 420px); }
 }
+
+.where { font-size: 10px; width: 100%; text-align: right; }
+@media (max-width: 759px) { .where { grid-column: 1 / -1; text-align: left; } }
