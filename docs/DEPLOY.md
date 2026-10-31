@@ -27,20 +27,27 @@ O motor precisa de um **processo contínuo** (WebSocket aberto com a Deriv). Fun
 
 Nenhum recurso pago foi criado.
 
-## 3. Oracle Always Free (recomendado)
+## 3. Oracle Always Free (recomendado) — tudo pelo iPhone
 
+O script `deploy/oracle/cloud-init.sh` instala Docker, baixa este repositório, cria o HTTPS automático (Caddy + domínio `IP.sslip.io`) e sobe o app. Também agenda a atualização diária a partir da `main`.
+
+1. Crie a conta em **cloud.oracle.com** (escolha a região *São Paulo* ou *Vinhedo*; é pedido um cartão só para verificação — recursos Always Free não são cobrados).
+2. Menu → **Compute → Instances → Create instance**.
+3. **Image:** Canonical Ubuntu 24.04. **Shape:** `VM.Standard.A1.Flex` (1 OCPU, 6 GB) — se aparecer "Out of capacity", use `VM.Standard.E2.1.Micro`. Ambos têm o selo *Always Free-eligible*.
+4. **Networking:** mantenha "Create new virtual cloud network" e **Assign a public IPv4 address** ligado.
+5. **SSH keys:** "No SSH keys" é aceitável (tudo é feito pelo script); se quiser acesso de manutenção, baixe a chave gerada.
+6. **Show advanced options → Management → Paste cloud-init script:** cole o conteúdo de `deploy/oracle/cloud-init.sh` e preencha as linhas do topo (senha do painel e, opcionalmente, os dados da conta DEMO da Deriv).
+7. **Create.** Anote o *Public IP address* da instância.
+8. Libere as portas na rede: na instância → **Subnet → Security List → Add Ingress Rules**: Source `0.0.0.0/0`, TCP, destination port `80`; repita para `443`.
+9. Aguarde ~10 minutos e abra `https://A-B-C-D.sslip.io` (o IP com hífens no lugar dos pontos, ex.: `129.1.2.3` → `https://129-1-2-3.sslip.io`). Entre com a senha do painel.
+
+Alterar segredos depois (pelo **Cloud Shell** do console Oracle, com a chave SSH baixada):
 ```bash
-# na VM Ubuntu
-sudo apt-get update && sudo apt-get install -y docker.io git
-git clone https://github.com/sabrisilvahbr-debug/Mohamed-ia-analiser.git && cd Mohamed-ia-analiser
-sudo docker build -t otc-trader .
-sudo docker volume create otc-data
-sudo docker run -d --name otc-trader --restart unless-stopped -p 80:8080 \
-  -v otc-data:/app/data \
-  -e ADMIN_TOKEN='...' -e DERIV_APP_ID='...' -e DERIV_PAT='...' -e DERIV_ACCOUNT_ID='...' \
-  otc-trader
+ssh ubuntu@IP
+sudo nano /opt/otc-secrets/app.env
+cd /opt/otc/deploy/oracle && sudo docker compose up -d
 ```
-Abra a porta 80 (ou 443 com um proxy HTTPS como Caddy) na lista de segurança da VCN. Use HTTPS antes de acessar pelo iPhone fora de casa.
+Logs: `sudo docker compose -f /opt/otc/deploy/oracle/docker-compose.yml logs -f app` • instalação: `/var/log/otc-install.log`.
 
 ## 4. Render (somente para testar)
 
