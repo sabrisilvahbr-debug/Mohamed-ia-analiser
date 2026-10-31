@@ -1,0 +1,22 @@
+{
+  "name": "ai-otc-trader-3d",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI OTC TRADER — 3D Autonomous Tradefloor. Motor de agentes no backend com integração à API oficial da Deriv.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning backend/src/main.ts",
+    "dev": "node --disable-warning=ExperimentalWarning --watch backend/src/main.ts",
+    "test": "node --disable-warning=ExperimentalWarning --test \"backend/test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "backtest": "node --disable-warning=ExperimentalWarning scripts/backtest.ts",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0"
+  }
+}
