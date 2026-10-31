@@ -14,6 +14,8 @@ export interface AppConfig {
   };
   allowRealTrading: boolean;
   frontendDir: string;
+  /** Origens externas autorizadas a usar a API (ex.: painel no Cloudflare Pages). */
+  allowedOrigins: string[];
 }
 
 function str(env: NodeJS.ProcessEnv, key: string): string | null {
@@ -56,8 +58,18 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       publicWs,
     },
     allowRealTrading: str(env, 'ALLOW_REAL_TRADING') === 'true',
+    allowedOrigins: parseOrigins(str(env, 'ALLOWED_ORIGINS')),
     frontendDir: path.resolve(import.meta.dirname, '../../frontend'),
   };
+}
+
+export function parseOrigins(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw.split(',').map((x) => x.trim()).filter(Boolean).map((o) => {
+    const u = new URL(o);
+    if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') throw new Error(`ALLOWED_ORIGINS deve usar https: ${o}`);
+    return u.origin;
+  });
 }
 
 export function hasDerivCredentials(c: AppConfig): boolean {

@@ -211,10 +211,36 @@ test('API: autenticação, validação e controles atuando no backend', async ()
   assert.equal(((await r2.json()) as { status: string }).status, 'STOPPED');
   assert.equal(sup.status, 'STOPPED');
 
+  // CORS: só origens autorizadas
+  const pre = await fetch(`${base}/api/state`, { method: 'OPTIONS', headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'GET' } });
+  assert.equal(pre.status, 403);
+  assert.equal(pre.headers.get('access-control-allow-origin'), null);
+
   const diag = await (await fetch(`${base}/api/diagnostics`, { headers: H })).json() as { checks: { name: string; ok: boolean }[] };
   assert.ok(diag.checks.find((x) => x.name === 'Canal público Deriv')?.ok);
   assert.equal((await fetch(`${base}/../../etc/passwd`)).status, 404);
 
+  server.close();
+  await sup.shutdown();
+  store.close();
+});
+
+test('API: CORS liberado apenas para o painel do Cloudflare Pages configurado', async () => {
+  const store = new Store(':memory:');
+  const c = { ...cfg(false), allowedOrigins: ['https://mohamed-ia-analiser.pages.dev'] };
+  const sup = new Supervisor({ config: c, store });
+  const server = createServer(c, store, sup);
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const ok = await fetch(`${base}/api/state`, { method: 'OPTIONS', headers: { Origin: 'https://mohamed-ia-analiser.pages.dev', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization' } });
+  assert.equal(ok.status, 204);
+  assert.equal(ok.headers.get('access-control-allow-origin'), 'https://mohamed-ia-analiser.pages.dev');
+  assert.match(ok.headers.get('access-control-allow-headers') ?? '', /Authorization/);
+  const r = await fetch(`${base}/api/state`, { headers: { Origin: 'https://mohamed-ia-analiser.pages.dev', Authorization: 'Bearer admin-token-0123456789' } });
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('access-control-allow-origin'), 'https://mohamed-ia-analiser.pages.dev');
+  const bad = await fetch(`${base}/api/state`, { headers: { Origin: 'https://outro.pages.dev', Authorization: 'Bearer admin-token-0123456789' } });
+  assert.equal(bad.headers.get('access-control-allow-origin'), null);
   server.close();
   await sup.shutdown();
   store.close();

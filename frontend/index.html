@@ -20,6 +20,9 @@
     <form id="login-form" class="login-card" autocomplete="off">
       <div class="brand big">AI OTC TRADER<span>3D AUTONOMOUS TRADEFLOOR</span></div>
       <p class="muted">Digite o <b>ADMIN_TOKEN</b> configurado no servidor. Esta é a senha do painel — não é a senha nem o token da Deriv.</p>
+      <label id="login-server-wrap" hidden>Endereço do motor (sua VM)
+        <input id="login-server" type="url" inputmode="url" placeholder="https://129-1-2-3.sslip.io" autocapitalize="off" spellcheck="false">
+      </label>
       <input id="login-token" type="password" inputmode="text" placeholder="ADMIN_TOKEN" required minlength="16" autocapitalize="off" spellcheck="false">
       <label class="check"><input id="login-remember" type="checkbox"> Lembrar neste aparelho</label>
       <button class="btn primary" type="submit">Entrar</button>
@@ -38,6 +41,7 @@
         <span id="pill-stream" class="pill" title="Atualização em tempo real do painel">Painel —</span>
       </div>
       <div id="clock" class="clock mono">--:--:--</div>
+      <div id="where" class="where muted"></div>
     </header>
 
     <div id="halt-banner" class="banner" hidden></div>

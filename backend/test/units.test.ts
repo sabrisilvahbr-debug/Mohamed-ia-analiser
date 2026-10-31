@@ -10,6 +10,7 @@ import { normalizeTick } from '../src/agents/marketData.ts';
 import { analyze } from '../src/agents/analyzer.ts';
 import { modeFromWsUrl } from '../src/deriv/auth.ts';
 import { redact, registerSecret } from '../src/logger.ts';
+import { parseOrigins } from '../src/config.ts';
 import type { TradeRow } from '../src/db.ts';
 
 const S = (patch: Partial<Settings> = {}): Settings => ({ ...structuredClone(DEFAULT_SETTINGS), ...patch });
@@ -219,4 +220,10 @@ test('logger mascara segredos, OTP e Bearer', () => {
   assert.ok(!out.includes('super-secret-token-123'));
   assert.ok(!out.includes('abc123'));
   assert.ok(!out.includes('xyz.987'));
+});
+
+test('ALLOWED_ORIGINS: normaliza e exige https', () => {
+  assert.deepEqual(parseOrigins('https://a.pages.dev/, https://b.pages.dev/x'), ['https://a.pages.dev', 'https://b.pages.dev']);
+  assert.deepEqual(parseOrigins(null), []);
+  assert.throws(() => parseOrigins('http://a.pages.dev'), /https/);
 });

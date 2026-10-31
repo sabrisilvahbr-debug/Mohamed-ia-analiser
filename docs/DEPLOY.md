@@ -49,6 +49,20 @@ cd /opt/otc/deploy/oracle && sudo docker compose up -d
 ```
 Logs: `sudo docker compose -f /opt/otc/deploy/oracle/docker-compose.yml logs -f app` • instalação: `/var/log/otc-install.log`.
 
+## 3b. Painel no Cloudflare Pages (link fixo e gratuito)
+
+O **painel** é estático (`frontend/`) e pode ficar em `https://<projeto>.pages.dev`. O **motor** continua na VM Oracle, porque o Cloudflare Pages/Workers só executa quando chega uma requisição e não mantém a conexão contínua com a Deriv.
+
+1. dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git**.
+2. Autorize o GitHub e escolha `Mohamed-ia-analiser`.
+3. **Project name:** `mohamed-ia-analiser` (o link será `https://mohamed-ia-analiser.pages.dev`; se o nome estiver ocupado, anote o link real).
+4. **Framework preset:** None • **Build command:** (vazio) • **Build output directory:** `frontend`.
+5. **Save and Deploy.** Cada push na `main` atualiza o painel sozinho.
+6. Na VM, `ALLOWED_ORIGINS` precisa conter exatamente o link do painel (o `cloud-init.sh` já usa `https://mohamed-ia-analiser.pages.dev`; se o link real for outro, edite `/opt/otc-secrets/app.env` e rode `sudo docker compose up -d` em `/opt/otc/deploy/oracle`).
+7. Abra o link do Pages, informe o **endereço do motor** (`https://IP-com-hífens.sslip.io`) e a senha do painel. O endereço fica salvo no aparelho.
+
+A API só aceita requisições de navegador vindas das origens listadas em `ALLOWED_ORIGINS`, e toda chamada exige a senha do painel.
+
 ## 4. Render (somente para testar)
 
 New → Blueprint → selecione o repositório (usa `render.yaml`). Preencha `DERIV_*` no painel. O `ADMIN_TOKEN` é gerado automaticamente (veja em Environment).

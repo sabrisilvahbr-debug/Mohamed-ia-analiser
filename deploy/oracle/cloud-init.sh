@@ -11,6 +11,7 @@ PAINEL_SENHA=""        # senha do painel, mínimo 16 caracteres (você escolhe)
 DERIV_APP_ID=""        # opcional — vazio = só cotações públicas, sem saldo/ordens
 DERIV_PAT=""           # opcional — token pessoal da Deriv com escopo "trade"
 DERIV_ACCOUNT_ID=""    # opcional — ID da conta DEMO (ex.: DOT...)
+PAINEL_CLOUDFLARE="https://mohamed-ia-analiser.pages.dev"  # link do painel no Cloudflare Pages
 # =====================================================================
 
 set -euo pipefail
@@ -45,6 +46,7 @@ DERIV_APP_ID=${DERIV_APP_ID}
 DERIV_PAT=${DERIV_PAT}
 DERIV_ACCOUNT_ID=${DERIV_ACCOUNT_ID}
 ALLOW_REAL_TRADING=false
+ALLOWED_ORIGINS=${PAINEL_CLOUDFLARE}
 DB_PATH=/app/data/trader.db
 PORT=8080
 EOF
