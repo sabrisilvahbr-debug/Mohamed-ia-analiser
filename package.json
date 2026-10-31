@@ -13,7 +13,8 @@
     "test": "node --disable-warning=ExperimentalWarning --test \"backend/test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "backtest": "node --disable-warning=ExperimentalWarning scripts/backtest.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "build:lib": "node --disable-warning=ExperimentalWarning scripts/build-frontend-lib.ts"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

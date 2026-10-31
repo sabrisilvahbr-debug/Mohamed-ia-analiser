@@ -25,8 +25,12 @@
       </label>
       <input id="login-token" type="password" inputmode="text" placeholder="ADMIN_TOKEN" required minlength="16" autocapitalize="off" spellcheck="false">
       <label class="check"><input id="login-remember" type="checkbox"> Lembrar neste aparelho</label>
-      <button class="btn primary" type="submit">Entrar</button>
+      <button class="btn primary" type="submit">Entrar no meu servidor</button>
       <p id="login-error" class="error" role="alert"></p>
+      <div id="login-direct-wrap" class="direct-box" hidden>
+        <p class="muted"><b>Sem servidor?</b> Abra o modo direto: este navegador conecta ao canal público oficial da Deriv e mostra cotações e análises reais. Sem saldo e sem ordens; a análise para quando a aba é fechada.</p>
+        <button class="btn go" type="button" id="login-direct">Ver mercado real agora (modo direto)</button>
+      </div>
     </form>
   </section>
 
@@ -44,6 +48,7 @@
       <div id="where" class="where muted"></div>
     </header>
 
+    <div id="direct-banner" class="banner info" hidden>MODO DIRETO — cotações reais vindas da Deriv para este navegador. Sem saldo, sem ordens; a análise roda só com esta aba aberta. Para operar na conta demo 24h, use o motor num servidor (docs/DEPLOY.md).</div>
     <div id="halt-banner" class="banner" hidden></div>
 
     <section class="stage">

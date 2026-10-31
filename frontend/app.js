@@ -4,6 +4,7 @@
 // painel mostra "indisponível" e o motivo — nunca um número inventado.
 // =====================================================================
 import { Tradefloor, webgl2Available } from './scene3d.js';
+import { DirectEngine } from './direct.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -36,7 +37,14 @@ async function sameOriginEngine() {
   try { const r = await fetch('/health', { cache: 'no-store' }); if (!r.ok) return false; const j = await r.json(); return j && j.ok === true; } catch { return false; }
 }
 
+/** Modo direto: navegador ↔ Deriv (canal público), sem servidor próprio. */
+let direct = null;
+
 async function api(path, opts = {}) {
+  if (direct) {
+    try { return await direct.handle(path, opts); }
+    catch (e) { const err = new Error(e.message); err.issues = e.issues; throw err; }
+  }
   const res = await fetch(base() + path, { ...opts, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
   if (res.status === 401) { logout('Sessão inválida. Entre novamente.'); throw new Error('não autorizado'); }
   const body = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
@@ -45,6 +53,7 @@ async function api(path, opts = {}) {
 }
 
 function logout(msg) {
+  if (direct) { localStorage.removeItem('otc.mode'); location.reload(); return; }
   token = '';
   localStorage.removeItem('otc.admin'); sessionStorage.removeItem('otc.admin');
   streamAbort?.abort();
@@ -204,7 +213,7 @@ function onEvent(type, data) {
 
 function renderStreamPill() {
   const p = $('#pill-stream');
-  p.textContent = !streamOk ? 'Painel reconectando' : liveMode === 'poll' ? 'Painel: atualiza a cada 2 s' : 'Painel ao vivo';
+  p.textContent = direct ? 'Modo direto (navegador ↔ Deriv)' : !streamOk ? 'Painel reconectando' : liveMode === 'poll' ? 'Painel: atualiza a cada 2 s' : 'Painel ao vivo';
   p.className = 'pill ' + (streamOk ? 'ok' : 'warn');
 }
 
@@ -222,6 +231,7 @@ function renderTop(s) {
   pill($('#pill-public'), `Deriv público: ${pub.status === 'open' ? 'conectado' : pub.status}`, pub.status === 'open' ? 'ok' : 'bad');
   const acc = s.connection.account;
   if (!s.connection.credentialsConfigured) pill($('#pill-account'), 'Conta: sem credenciais', 'info');
+  else if (!acc) pill($('#pill-account'), 'Conta: —', 'info');
   else pill($('#pill-account'), `Conta ${acc.mode ?? ''}: ${acc.status === 'open' ? 'conectada' : acc.status}`, acc.status === 'open' ? (acc.mode === 'real' ? 'bad' : 'ok') : 'bad');
   const b = $('#halt-banner');
   if (s.engine.haltReasons.length) {
@@ -242,7 +252,7 @@ function renderAccount(s) {
   if (!s.connection.credentialsConfigured) {
     v.textContent = 'Saldo indisponível'; v.className = 'value na';
     badge.textContent = 'SEM CONTA CONECTADA'; badge.className = 'badge';
-    kv($('#acc-kv'), [['Motivo', 'DERIV_APP_ID / DERIV_PAT / DERIV_ACCOUNT_ID não configurados no servidor']]);
+    kv($('#acc-kv'), [['Motivo', s.direct ? 'modo direto usa só o canal público da Deriv; saldo exige o motor num servidor com credenciais' : 'DERIV_APP_ID / DERIV_PAT / DERIV_ACCOUNT_ID não configurados no servidor']]);
     $('#acc-src').textContent = 'Nenhum saldo é exibido sem confirmação da Deriv.';
     return;
   }
@@ -411,6 +421,7 @@ function renderControls(s) {
   const canDemo = s.connection.credentialsConfigured;
   m.disabled = !canDemo && !demo;
   m.title = canDemo ? '' : 'Configure as credenciais da Deriv no servidor para usar a conta demo';
+  if (s.direct) m.textContent = 'MODO DEMONSTRAÇÃO: requer o motor num servidor (modo direto só gera sinais)';
 }
 
 // ---------------------------------------------------------------- controles
@@ -517,10 +528,21 @@ window.addEventListener('resize', () => { if (state) drawChart($('#chart'), stat
 
 function boot(initial) {
   $('#login').hidden = true; $('#app').hidden = false;
+  $('#direct-banner').hidden = !direct;
   if (!floor) setupFloor();
   render(initial);
-  void stream();
+  if (direct) { direct.onChange(render); streamOk = true; renderStreamPill(); }
+  else void stream();
 }
+
+function bootDirect() {
+  const override = localStorage.getItem('otc.derivPublicWs'); // apenas para testes locais
+  direct = new DirectEngine({ url: override || undefined });
+  localStorage.setItem('otc.mode', 'direct');
+  direct.start();
+  boot(direct.state());
+}
+$('#login-direct').addEventListener('click', bootDirect);
 
 (async () => {
   const same = await sameOriginEngine();
@@ -528,6 +550,8 @@ function boot(initial) {
   $('#login-server-wrap').hidden = same;
   $('#login-server').value = server;
   $('#where').textContent = same ? '' : (server ? `Motor: ${server}` : '');
+  $('#login-direct-wrap').hidden = same;
+  if (!same && localStorage.getItem('otc.mode') === 'direct') { bootDirect(); return; }
   if (!token || (!same && !server)) { $('#login').hidden = false; return; }
   try { boot(await api('/api/state')); } catch { if (token) { $('#login').hidden = false; $('#login-error').textContent = 'Servidor indisponível no momento.'; } }
 })();
