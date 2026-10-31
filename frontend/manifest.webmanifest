@@ -1,0 +1,9 @@
+{
+  "name": "AI OTC TRADER — 3D Tradefloor",
+  "short_name": "OTC Trader 3D",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020812",
+  "theme_color": "#020812",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

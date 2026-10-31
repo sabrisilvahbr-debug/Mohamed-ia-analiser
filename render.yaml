@@ -1,0 +1,21 @@
+# Blueprint do Render (plano gratuito). ATENÇÃO aos limites reais do plano Free:
+#  - o serviço DORME após 15 min sem tráfego de entrada (o motor para junto);
+#  - o disco é efêmero: o SQLite é apagado em cada reinício/deploy/hibernação.
+# Para operação contínua use uma VM (ver docs/DEPLOY.md) ou um plano pago com disco persistente.
+services:
+  - type: web
+    name: ai-otc-trader-3d
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: DERIV_APP_ID
+        sync: false
+      - key: DERIV_PAT
+        sync: false
+      - key: DERIV_ACCOUNT_ID
+        sync: false
+      - key: ALLOW_REAL_TRADING
+        value: "false"

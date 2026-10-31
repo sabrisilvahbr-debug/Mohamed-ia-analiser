@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#020812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OTC Trader 3D">
+  <title>AI OTC TRADER — 3D Autonomous Tradefloor</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <!-- ===================== LOGIN ===================== -->
+  <section id="login" class="overlay" hidden>
+    <form id="login-form" class="login-card" autocomplete="off">
+      <div class="brand big">AI OTC TRADER<span>3D AUTONOMOUS TRADEFLOOR</span></div>
+      <p class="muted">Digite o <b>ADMIN_TOKEN</b> configurado no servidor. Esta é a senha do painel — não é a senha nem o token da Deriv.</p>
+      <input id="login-token" type="password" inputmode="text" placeholder="ADMIN_TOKEN" required minlength="16" autocapitalize="off" spellcheck="false">
+      <label class="check"><input id="login-remember" type="checkbox"> Lembrar neste aparelho</label>
+      <button class="btn primary" type="submit">Entrar</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand">AI OTC TRADER<span>3D TRADEFLOOR</span></div>
+      <div class="pills">
+        <span id="pill-engine" class="pill">—</span>
+        <span id="pill-public" class="pill" title="Canal público da Deriv">Deriv —</span>
+        <span id="pill-account" class="pill" title="Canal autenticado da conta">Conta —</span>
+        <span id="pill-stream" class="pill" title="Atualização em tempo real do painel">Painel —</span>
+      </div>
+      <div id="clock" class="clock mono">--:--:--</div>
+    </header>
+
+    <div id="halt-banner" class="banner" hidden></div>
+
+    <section class="stage">
+      <canvas id="floor3d" aria-label="Tradefloor 3D com os agentes"></canvas>
+      <div id="stage-fallback" class="stage-fallback" hidden></div>
+      <div class="stage-tools">
+        <button class="chip" data-quality="full">3D completo</button>
+        <button class="chip" data-quality="eco">Econômico</button>
+        <button class="chip" data-quality="off">Desligar 3D</button>
+        <button class="chip" id="cam-reset">Visão geral</button>
+      </div>
+      <div id="agent-focus" class="agent-focus" hidden></div>
+    </section>
+
+    <nav class="controls">
+      <button id="btn-start" class="btn go">▶ INICIAR</button>
+      <button id="btn-pause" class="btn warn">⏸ PAUSAR</button>
+      <button id="btn-stop" class="btn danger">■ PARAR</button>
+      <button id="btn-mode" class="btn">MODO DEMONSTRAÇÃO</button>
+      <button id="btn-settings" class="btn ghost">⚙ CONFIGURAÇÕES</button>
+      <button id="btn-history" class="btn ghost">☰ HISTÓRICO</button>
+      <button id="btn-diag" class="btn ghost">✚ DIAGNÓSTICO</button>
+    </nav>
+    <p id="control-msg" class="control-msg" role="status"></p>
+
+    <main class="grid">
+      <article class="card" id="card-account">
+        <h2>Conta conectada</h2>
+        <div class="value" id="acc-balance">—</div>
+        <div id="acc-badge" class="badge">—</div>
+        <dl class="kv" id="acc-kv"></dl>
+        <p class="src" id="acc-src"></p>
+      </article>
+
+      <article class="card" id="card-pnl">
+        <h2>Resultado do dia (UTC)</h2>
+        <div class="split">
+          <div><small>Realizado</small><div class="value" id="pnl-real">—</div></div>
+          <div><small>Não realizado</small><div class="value" id="pnl-unreal">—</div></div>
+        </div>
+        <dl class="kv" id="pnl-kv"></dl>
+        <p class="src" id="pnl-src"></p>
+      </article>
+
+      <article class="card wide" id="card-market">
+        <h2>Cotação <span id="mk-symbol" class="mono"></span></h2>
+        <div class="split">
+          <div class="value mono" id="mk-price">—</div>
+          <div class="right"><small id="mk-age">—</small></div>
+        </div>
+        <canvas id="chart" class="chart" height="160"></canvas>
+        <p class="src" id="mk-src"></p>
+      </article>
+
+      <article class="card" id="card-decision">
+        <h2>Estratégia & decisão</h2>
+        <div id="dc-action" class="action">—</div>
+        <p id="dc-reason" class="muted"></p>
+        <dl class="kv" id="dc-kv"></dl>
+        <p class="src" id="dc-src"></p>
+      </article>
+
+      <article class="card" id="card-risk">
+        <h2>Limites de risco</h2>
+        <div id="risk-bars"></div>
+        <ul id="risk-reasons" class="reasons"></ul>
+      </article>
+
+      <article class="card wide" id="card-agents">
+        <h2>Agentes</h2>
+        <ul id="agents" class="agents"></ul>
+      </article>
+
+      <article class="card wide" id="card-trades">
+        <h2>Operações registradas</h2>
+        <div class="table-wrap"><table id="trades"><thead><tr><th>#</th><th>Criada</th><th>Conta</th><th>Contrato</th><th>Stake</th><th>Estado</th><th>Resultado</th></tr></thead><tbody></tbody></table></div>
+        <p class="src">Estados: OPEN somente após contract_id confirmado pela Deriv; resultado somente após is_sold=1 validado.</p>
+      </article>
+
+      <article class="card wide" id="card-events">
+        <h2>Histórico de eventos</h2>
+        <ul id="events" class="events"></ul>
+      </article>
+    </main>
+    <footer class="foot muted">Sem promessa de lucro. Operações com derivativos envolvem risco de perda. Execução real desativada por padrão.</footer>
+  </div>
+
+  <!-- ===================== MODAIS ===================== -->
+  <dialog id="dlg-settings" class="dlg">
+    <form id="settings-form" method="dialog">
+      <h2>Configurações</h2>
+      <fieldset><legend>Mercado e estratégia</legend>
+        <label>Símbolo (de active_symbols)<select name="symbol" id="set-symbol"></select></label>
+        <label>Estratégia<select name="strategy"><option value="ema_cross">Cruzamento de EMAs</option><option value="rsi_reversion">Reversão por RSI</option></select></label>
+        <div class="row"><label>EMA rápida<input name="ema.fast" type="number" min="2" max="200" step="1"></label><label>EMA lenta<input name="ema.slow" type="number" min="3" max="500" step="1"></label></div>
+        <div class="row"><label>RSI período<input name="rsi.period" type="number" min="2" step="1"></label><label>RSI inferior<input name="rsi.lower" type="number" min="1" max="49"></label><label>RSI superior<input name="rsi.upper" type="number" min="51" max="99"></label></div>
+        <div class="row"><label>Volatilidade mín. %<input name="minVolatilityPct" type="number" min="0" step="0.0001"></label><label>Volatilidade máx. %<input name="maxVolatilityPct" type="number" min="0" step="0.0001"></label></div>
+      </fieldset>
+      <fieldset><legend>Contrato</legend>
+        <div class="row"><label>Duração<input name="contractDuration" type="number" min="1" step="1"></label>
+          <label>Unidade<select name="durationUnit"><option value="t">ticks</option><option value="s">segundos</option><option value="m">minutos</option></select></label>
+          <label>Stake (fixo)<input name="stake" type="number" min="0.35" step="0.01"></label></div>
+        <label>Execução<select name="executionMode"><option value="signals">SINAIS — analisa, não envia ordens</option><option value="demo">DEMO — ordens na conta demo da Deriv</option><option value="real">REAL — dinheiro real</option></select></label>
+        <label class="check" id="confirm-real-wrap" hidden><input type="checkbox" id="confirm-real"> Entendo que o modo REAL movimenta dinheiro real e pode gerar perdas.</label>
+      </fieldset>
+      <fieldset><legend>Risco (validado no servidor)</legend>
+        <div class="row"><label>Máx. por operação<input name="risk.maxStakePerTrade" type="number" min="0.35" step="0.01"></label><label>Perda diária máx.<input name="risk.maxDailyLoss" type="number" min="0.35" step="0.01"></label></div>
+        <div class="row"><label>Contratos abertos máx.<input name="risk.maxOpenContracts" type="number" min="1" max="20" step="1"></label><label>Exposição máx.<input name="risk.maxExposure" type="number" min="0.35" step="0.01"></label></div>
+        <div class="row"><label>Perdas seguidas → pausa<input name="risk.maxConsecutiveLosses" type="number" min="1" step="1"></label><label>Intervalo entre entradas (s)<input name="risk.cooldownSeconds" type="number" min="0" step="1"></label><label>Idade máx. cotação (s)<input name="risk.maxTickAgeSeconds" type="number" min="1" step="1"></label></div>
+      </fieldset>
+      <p id="settings-error" class="error" role="alert"></p>
+      <div class="dlg-actions"><button class="btn ghost" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" id="settings-save" value="save">Salvar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-history" class="dlg wide">
+    <div class="dlg-head"><h2>Histórico</h2><button class="btn ghost" data-close>Fechar</button></div>
+    <div class="tabs"><button class="chip active" data-tab="h-trades">Operações</button><button class="chip" data-tab="h-decisions">Decisões</button><button class="chip" data-tab="h-events">Eventos</button></div>
+    <div id="h-trades" class="tab table-wrap"></div>
+    <div id="h-decisions" class="tab table-wrap" hidden></div>
+    <div id="h-events" class="tab" hidden><ul class="events" id="h-events-list"></ul><button class="btn ghost" id="h-more">Carregar mais</button></div>
+  </dialog>
+
+  <dialog id="dlg-diag" class="dlg wide">
+    <div class="dlg-head"><h2>Diagnóstico</h2><button class="btn ghost" data-close>Fechar</button></div>
+    <div id="diag-body"><p class="muted">Executando verificações…</p></div>
+    <div class="dlg-actions"><button class="btn warn" id="btn-ack">Reconhecer travas manuais</button><button class="btn ghost" id="btn-logout">Sair deste aparelho</button></div>
+  </dialog>
+</body>
+</html>
