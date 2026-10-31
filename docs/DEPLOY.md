@@ -27,27 +27,33 @@ O motor precisa de um **processo contínuo** (WebSocket aberto com a Deriv). Fun
 
 Nenhum recurso pago foi criado.
 
-## 3. Oracle Always Free (recomendado) — tudo pelo iPhone
+## 3. Oracle Always Free + link trycloudflare.com — tudo pelo iPhone
 
-O script `deploy/oracle/cloud-init.sh` instala Docker, baixa este repositório, cria o HTTPS automático (Caddy + domínio `IP.sslip.io`) e sobe o app. Também agenda a atualização diária a partir da `main`.
+O script `deploy/oracle/cloud-init.sh` instala Docker, baixa este repositório e sobe o app com um **Cloudflare Quick Tunnel**: o painel fica acessível em `https://xxxx.trycloudflare.com` **sem abrir portas** na VM. O link é publicado no seu canal ntfy (`https://ntfy.sh/SEU_CANAL`) e republicado automaticamente se mudar.
 
-1. Crie a conta em **cloud.oracle.com** (escolha a região *São Paulo* ou *Vinhedo*; é pedido um cartão só para verificação — recursos Always Free não são cobrados).
+Limites oficiais dos Quick Tunnels (Cloudflare): sem garantia de disponibilidade, até 200 requisições simultâneas, sem Server-Sent Events (o painel passa a atualizar a cada 2 s automaticamente) e **o link muda a cada reinício** do túnel. Para um link fixo, use um túnel nomeado com domínio próprio ou o painel no Cloudflare Pages (seção 3b).
+
+1. Crie a conta em **cloud.oracle.com** (região São Paulo ou Vinhedo; cartão só para verificação — recursos Always Free não são cobrados).
 2. Menu → **Compute → Instances → Create instance**.
-3. **Image:** Canonical Ubuntu 24.04. **Shape:** `VM.Standard.A1.Flex` (1 OCPU, 6 GB) — se aparecer "Out of capacity", use `VM.Standard.E2.1.Micro`. Ambos têm o selo *Always Free-eligible*.
-4. **Networking:** mantenha "Create new virtual cloud network" e **Assign a public IPv4 address** ligado.
-5. **SSH keys:** "No SSH keys" é aceitável (tudo é feito pelo script); se quiser acesso de manutenção, baixe a chave gerada.
-6. **Show advanced options → Management → Paste cloud-init script:** cole o conteúdo de `deploy/oracle/cloud-init.sh` e preencha as linhas do topo (senha do painel e, opcionalmente, os dados da conta DEMO da Deriv).
-7. **Create.** Anote o *Public IP address* da instância.
-8. Libere as portas na rede: na instância → **Subnet → Security List → Add Ingress Rules**: Source `0.0.0.0/0`, TCP, destination port `80`; repita para `443`.
-9. Aguarde ~10 minutos e abra `https://A-B-C-D.sslip.io` (o IP com hífens no lugar dos pontos, ex.: `129.1.2.3` → `https://129-1-2-3.sslip.io`). Entre com a senha do painel.
+3. **Image:** Canonical Ubuntu 24.04. **Shape:** `VM.Standard.A1.Flex` (1 OCPU, 6 GB); se "Out of capacity", `VM.Standard.E2.1.Micro`.
+4. **Networking:** mantenha a VCN nova e **Assign a public IPv4 address** ligado (necessário para a VM sair para a internet).
+5. **Show advanced options → Management → Paste cloud-init script:** cole `deploy/oracle/cloud-init.sh` e preencha o topo:
+   - `PAINEL_SENHA` (≥ 16 caracteres)
+   - `CANAL_LINK` — nome secreto, ex.: `mohamed-otc-7f3k9q2z`
+   - opcional: `DERIV_APP_ID`, `DERIV_PAT`, `DERIV_ACCOUNT_ID` (conta **demo**)
+   - opcional: `EMAIL_PERMITIDO` — a Cloudflare exige um PIN enviado a esse e-mail antes de abrir o link
+6. **Create.** Aguarde ~10 minutos.
+7. Abra `https://ntfy.sh/SEU_CANAL` no Safari (ou instale o app **ntfy** e assine o canal para receber notificação quando o link mudar). Toque no link `trycloudflare.com` e entre com a senha do painel.
 
-Alterar segredos depois (pelo **Cloud Shell** do console Oracle, com a chave SSH baixada):
+Manutenção (Cloud Shell do console Oracle, com a chave SSH baixada na criação):
 ```bash
 ssh ubuntu@IP
-sudo nano /opt/otc-secrets/app.env
+sudo cat /opt/otc-secrets/link.txt                 # link atual
+sudo nano /opt/otc-secrets/app.env                 # alterar segredos
 cd /opt/otc/deploy/oracle && sudo docker compose up -d
+sudo docker compose -f /opt/otc/deploy/oracle/docker-compose.yml logs -f app
 ```
-Logs: `sudo docker compose -f /opt/otc/deploy/oracle/docker-compose.yml logs -f app` • instalação: `/var/log/otc-install.log`.
+Logs da instalação: `/var/log/otc-install.log` • publicação do link: `/var/log/otc-link.log`.
 
 ## 3b. Painel no Cloudflare Pages (link fixo e gratuito)
 
