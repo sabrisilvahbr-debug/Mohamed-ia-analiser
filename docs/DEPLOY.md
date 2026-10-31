@@ -69,6 +69,15 @@ O **painel** é estático (`frontend/`) e pode ficar em `https://<projeto>.pages
 
 A API só aceita requisições de navegador vindas das origens listadas em `ALLOWED_ORIGINS`, e toda chamada exige a senha do painel.
 
+## 3c. Vercel — modo direto (sem servidor)
+
+A Vercel hospeda o painel como site estático (configurado em `vercel.json`, sem etapa de build). Como a Vercel só executa código por requisição, o **motor 24h não roda lá**. Sem motor, o painel oferece o **modo direto**: o navegador conecta ao canal público oficial da Deriv e mostra cotações, histórico, ativos e análises reais, com a mesma lógica de estratégia do backend (`frontend/lib`, gerada de `backend/src`). Limites: sem saldo, sem ordens, e a análise só roda com a aba aberta.
+
+1. vercel.com → **Add New… → Project → Import Git Repository** → `Mohamed-ia-analiser`.
+2. Não altere nada (o `vercel.json` define a pasta `frontend`) → **Deploy**.
+3. Abra o link `https://<projeto>.vercel.app` → **Ver mercado real agora (modo direto)**.
+4. Quando o motor estiver num servidor, use o mesmo link: informe o endereço do motor e a senha, e adicione o link da Vercel em `ALLOWED_ORIGINS` no servidor.
+
 ## 4. Render (somente para testar)
 
 New → Blueprint → selecione o repositório (usa `render.yaml`). Preencha `DERIV_*` no painel. O `ADMIN_TOKEN` é gerado automaticamente (veja em Environment).
