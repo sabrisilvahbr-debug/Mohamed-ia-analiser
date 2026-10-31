@@ -65,8 +65,10 @@ npm run backtest -- R_100 5000 0.95   # backtest com dados reais da Deriv
 
 ## Testes
 
-`npm test` executa 38 testes: indicadores, estratégias, validação, risco, banco, liquidação, reconciliação e integração ponta a ponta contra um **servidor de teste local** que implementa o protocolo documentado da Deriv (`backend/test/helpers/mockDeriv.ts`). Esse servidor existe só para os testes automatizados; o aplicativo nunca o usa.
+`npm test` executa 40 testes (inclui o código real do Worker/Durable Object executado no Node): indicadores, estratégias, validação, risco, banco, liquidação, reconciliação e integração ponta a ponta contra um **servidor de teste local** que implementa o protocolo documentado da Deriv (`backend/test/helpers/mockDeriv.ts`). Esse servidor existe só para os testes automatizados; o aplicativo nunca o usa.
 
 ## Deploy
+
+**Cloudflare Workers (grátis):** motor completo num Durable Object + painel — veja docs/DEPLOY.md, seção 2b.
 
 Motor 24h na VM Oracle Always Free, acessível por link `trycloudflare.com` (ou painel com link fixo no Cloudflare Pages). Na Vercel o painel roda em **modo direto** (navegador ↔ canal público da Deriv, sem saldo e sem ordens). Veja [docs/DEPLOY.md](docs/DEPLOY.md).

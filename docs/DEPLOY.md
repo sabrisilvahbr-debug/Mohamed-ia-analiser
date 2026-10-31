@@ -27,6 +27,27 @@ O motor precisa de um **processo contínuo** (WebSocket aberto com a Deriv). Fun
 
 Nenhum recurso pago foi criado.
 
+## 2b. Cloudflare Workers (recomendado — grátis, motor completo, sem servidor próprio)
+
+O mesmo motor (agentes, risco, Deriv, banco) roda num **Durable Object** do Cloudflare (`cloudflare/src/worker.ts`, configuração em `wrangler.jsonc`). O painel é servido junto, como arquivos estáticos.
+
+**Como ele fica ativo 24h (documentação oficial da Cloudflare):**
+- a conexão WebSocket de saída com a Deriv mantém o Durable Object ativo;
+- um alarme a cada 30 s e um cron por minuto o recriam se o Cloudflare o descarregar;
+- operações, eventos e configurações ficam no SQLite do Durable Object e sobrevivem a reinícios.
+
+**Limites do plano gratuito:** 13.000 GB-s/dia de duração (um objeto de 128 MB ligado 24h usa ~11.000) e 100.000 requisições/dia. Se um limite for excedido, a Cloudflare recusa as operações até o dia seguinte (00:00 UTC). Não há cobrança no plano Free.
+
+**Publicar pelo iPhone:**
+1. dash.cloudflare.com → **Workers & Pages → Create → Import a repository** → GitHub → `Mohamed-ia-analiser`.
+2. Mantenha **Deploy command** `npx wrangler deploy` e o **Build command** vazio → **Deploy**.
+3. No Worker criado: **Settings → Variables and Secrets → Add**, tipo **Secret**:
+   - `ADMIN_TOKEN` — senha do painel (≥ 16 caracteres) — obrigatório
+   - `DERIV_APP_ID`, `DERIV_PAT` (escopo Trade), `DERIV_ACCOUNT_ID` (conta **demo**) — para saldo e ordens
+4. Abra `https://mohamed-ia-analiser.<seu-subdominio>.workers.dev`, entre com a senha e confira o **DIAGNÓSTICO**.
+
+Cada push na `main` publica de novo automaticamente.
+
 ## 3. Oracle Always Free + link trycloudflare.com — tudo pelo iPhone
 
 O script `deploy/oracle/cloud-init.sh` instala Docker, baixa este repositório e sobe o app com um **Cloudflare Quick Tunnel**: o painel fica acessível em `https://xxxx.trycloudflare.com` **sem abrir portas** na VM. O link é publicado no seu canal ntfy (`https://ntfy.sh/SEU_CANAL`) e republicado automaticamente se mudar.

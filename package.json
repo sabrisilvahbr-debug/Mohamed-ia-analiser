@@ -14,10 +14,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "backtest": "node --disable-warning=ExperimentalWarning scripts/backtest.ts",
     "check": "npm run typecheck && npm test",
-    "build:lib": "node --disable-warning=ExperimentalWarning scripts/build-frontend-lib.ts"
+    "build:lib": "node --disable-warning=ExperimentalWarning scripts/build-frontend-lib.ts",
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "wrangler": "^4.0.0"
   }
 }

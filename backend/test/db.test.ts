@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { Store } from '../src/db.ts';
+import { openStore } from '../src/db-node.ts';
 import { DEFAULT_SETTINGS } from '../src/settings.ts';
 
 const tradeInput = (key: string) => ({ signal_key: key, account_mode: 'demo', account_id: 'DOT1', symbol: 'R_100', contract_type: 'CALL', duration: 5, duration_unit: 't', stake: 1, currency: 'USD' });
 
 test('banco: signal_key único impede ordem duplicada', () => {
-  const s = new Store(':memory:');
+  const s = openStore(':memory:');
   assert.ok(s.createTrade(tradeInput('a')));
   assert.equal(s.createTrade(tradeInput('a')), null);
   assert.ok(s.createTrade(tradeInput('b')));
@@ -17,7 +17,7 @@ test('banco: signal_key único impede ordem duplicada', () => {
 });
 
 test('banco: decisão única por (símbolo, estratégia, tick)', () => {
-  const s = new Store(':memory:');
+  const s = openStore(':memory:');
   const d = { symbol: 'R_100', strategy: 'ema_cross', tick_epoch: 1, action: 'CALL', reason: 'x', indicators: '{}', verdict: 'pending', verdict_reason: null };
   assert.ok(s.addDecision(d));
   assert.equal(s.addDecision(d), null);
@@ -25,7 +25,7 @@ test('banco: decisão única por (símbolo, estratégia, tick)', () => {
 });
 
 test('banco: resultado realizado considera apenas SETTLED; perdas consecutivas', () => {
-  const s = new Store(':memory:');
+  const s = openStore(':memory:');
   const today = new Date().toISOString().slice(0, 10);
   const mk = (k: string, profit: number) => {
     const t = s.createTrade(tradeInput(k))!;
@@ -45,11 +45,11 @@ test('banco: resultado realizado considera apenas SETTLED; perdas consecutivas',
 test('banco: configurações e estado desejado persistem entre reinícios', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'trader-'));
   const file = path.join(dir, 't.db');
-  const a = new Store(file);
+  const a = openStore(file);
   a.saveSettings({ ...DEFAULT_SETTINGS, stake: 2 });
   a.setDesired('RUNNING');
   a.close();
-  const b = new Store(file);
+  const b = openStore(file);
   assert.equal(b.getSettings().stake, 2);
   assert.equal(b.getDesired(), 'RUNNING');
   b.close();
@@ -58,8 +58,8 @@ test('banco: configurações e estado desejado persistem entre reinícios', () =
 test('banco: lock impede duas instâncias simultâneas', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'trader-'));
   const file = path.join(dir, 'l.db');
-  const a = new Store(file);
-  const b = new Store(file);
+  const a = openStore(file);
+  const b = openStore(file);
   const now = Date.now();
   assert.equal(a.acquireLock(30_000, now), true);
   assert.equal(b.acquireLock(30_000, now + 1000), false);

@@ -1,5 +1,5 @@
 import { hasDerivCredentials, loadDotEnv, readConfig, secretValues } from './config.ts';
-import { Store } from './db.ts';
+import { openStore } from './db-node.ts';
 import { logger, registerSecret } from './logger.ts';
 import { Supervisor } from './agents/supervisor.ts';
 import { createServer } from './server.ts';
@@ -10,7 +10,7 @@ loadDotEnv();
 const cfg = readConfig();
 for (const s of secretValues(cfg)) registerSecret(s);
 
-const store = new Store(cfg.dbPath);
+const store = openStore(cfg.dbPath);
 
 // Lock de instância única: impede dois motores operando o mesmo banco (ex.: após reinício/deploy).
 if (!store.acquireLock()) {

@@ -1,7 +1,3 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { DEFAULT_SETTINGS, validateSettings, type Settings } from './settings.ts';
 
 export type TradeState =
@@ -99,18 +95,34 @@ CREATE TABLE IF NOT EXISTS instance_lock (id INTEGER PRIMARY KEY CHECK (id = 1),
 
 export type DesiredState = 'RUNNING' | 'PAUSED' | 'STOPPED';
 
-export class Store {
-  readonly db: DatabaseSync;
-  readonly instanceId = randomUUID();
+/**
+ * Driver SQL mínimo. Implementações:
+ *  - db-node.ts: node:sqlite (servidor Node, VM, Render, Docker)
+ *  - cloudflare/src/sql-driver.ts: SQLite do Durable Object (Cloudflare)
+ */
+export type SqlValue = string | number | null;
+export interface SqlStatement {
+  get(...params: SqlValue[]): unknown;
+  all(...params: SqlValue[]): unknown[];
+  /** changes = linhas afetadas (> 0 quando algo foi escrito) */
+  run(...params: SqlValue[]): { changes: number; lastInsertRowid: number | bigint };
+}
+export interface SqlDriver {
+  exec(sql: string): void;
+  prepare(sql: string): SqlStatement;
+  close?(): void;
+}
 
-  constructor(file: string) {
-    if (file !== ':memory:') mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
-    this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
+export class Store {
+  readonly db: SqlDriver;
+  readonly instanceId = globalThis.crypto.randomUUID();
+
+  constructor(driver: SqlDriver) {
+    this.db = driver;
     this.db.exec(SCHEMA);
   }
 
-  close(): void { this.db.close(); }
+  close(): void { this.db.close?.(); }
 
   // ---------------- lock de instância única ----------------
   /**
@@ -129,7 +141,7 @@ export class Store {
       const r = this.db
         .prepare('UPDATE instance_lock SET owner = ?, heartbeat_ms = ? WHERE id = 1 AND owner = ? AND heartbeat_ms = ?')
         .run(this.instanceId, now, row.owner, row.heartbeat_ms);
-      return r.changes === 1;
+      return r.changes > 0;
     }
     return false;
   }

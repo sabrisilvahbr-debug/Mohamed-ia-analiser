@@ -1,0 +1,22 @@
+{
+  // AI OTC TRADER 3D — Cloudflare Workers (plano gratuito)
+  // Segredos (configure no painel: Worker → Settings → Variables and Secrets, tipo "Secret"):
+  //   ADMIN_TOKEN (obrigatório, ≥ 16 caracteres) · DERIV_APP_ID · DERIV_PAT · DERIV_ACCOUNT_ID
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mohamed-ia-analiser",
+  "main": "cloudflare/src/worker.ts",
+  "compatibility_date": "2026-10-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health", "/health/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "TRADER", "class_name": "TraderEngine" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TraderEngine"] }],
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": { "ALLOW_REAL_TRADING": "false" },
+  "observability": { "enabled": true }
+}
