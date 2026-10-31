@@ -7,10 +7,9 @@ export interface WsLike {
   readyState: number;
   send(data: string): void;
   close(code?: number, reason?: string): void;
-  onopen: ((ev: unknown) => void) | null;
-  onmessage: ((ev: { data: unknown }) => void) | null;
-  onclose: ((ev: { code?: number; reason?: string }) => void) | null;
-  onerror: ((ev: unknown) => void) | null;
+  addEventListener(type: 'open' | 'error', fn: (ev: unknown) => void): void;
+  addEventListener(type: 'message', fn: (ev: { data: unknown }) => void): void;
+  addEventListener(type: 'close', fn: (ev: { code?: number; reason?: string }) => void): void;
 }
 export type WsFactory = (url: string) => WsLike;
 
@@ -128,7 +127,7 @@ export class DerivSocket extends EventEmitter {
       return;
     }
     this.ws = ws;
-    ws.onopen = () => {
+    ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
       this.status = 'open';
       this.connectedAt = Date.now();
@@ -139,13 +138,13 @@ export class DerivSocket extends EventEmitter {
       this.startTimers();
       this.emit('status', this.status);
       this.emit('open');
-    };
-    ws.onmessage = (ev) => { if (this.ws === ws) this.handleMessage(ev.data); };
-    ws.onerror = () => { if (this.ws === ws) this.lastError = 'erro de WebSocket'; };
-    ws.onclose = (ev) => {
+    });
+    ws.addEventListener('message', (ev) => { if (this.ws === ws) this.handleMessage(ev.data); });
+    ws.addEventListener('error', () => { if (this.ws === ws) this.lastError = 'erro de WebSocket'; });
+    ws.addEventListener('close', (ev) => {
       if (this.ws !== ws) return;
       this.fail(`conexão encerrada (code ${ev.code ?? '?'}${ev.reason ? ', ' + ev.reason : ''})`);
-    };
+    });
   }
 
   private fail(reason: string): void {
@@ -170,7 +169,7 @@ export class DerivSocket extends EventEmitter {
     const ws = this.ws;
     this.ws = null;
     if (ws) {
-      ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+      // os listeners ignoram eventos de sockets antigos (this.ws !== ws)
       try { ws.close(1000, 'bye'); } catch { /* já fechado */ }
     }
     for (const [id, p] of this.pending) {

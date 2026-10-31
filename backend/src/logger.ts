@@ -23,13 +23,14 @@ function emit(level: Level, scope: string, msg: string, extra?: unknown): void {
   const line: Record<string, unknown> = { t: new Date().toISOString(), level, scope, msg };
   if (extra !== undefined) line.extra = extra instanceof Error ? { name: extra.name, message: extra.message } : extra;
   const text = redact(JSON.stringify(line));
-  if (level === 'error' || level === 'warn') process.stderr.write(text + '\n');
-  else if (process.env.LOG_SILENT !== '1') process.stdout.write(text + '\n');
+  const silent = typeof process !== 'undefined' && process.env?.LOG_SILENT === '1';
+  if (level === 'error' || level === 'warn') console.error(text);
+  else if (!silent) console.log(text);
 }
 
 export function logger(scope: string) {
   return {
-    debug: (m: string, e?: unknown) => { if (process.env.LOG_DEBUG === '1') emit('debug', scope, m, e); },
+    debug: (m: string, e?: unknown) => { if (typeof process !== 'undefined' && process.env?.LOG_DEBUG === '1') emit('debug', scope, m, e); },
     info: (m: string, e?: unknown) => emit('info', scope, m, e),
     warn: (m: string, e?: unknown) => emit('warn', scope, m, e),
     error: (m: string, e?: unknown) => emit('error', scope, m, e),

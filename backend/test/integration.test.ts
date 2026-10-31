@@ -9,7 +9,7 @@ import { DerivSocket, DerivApiError, DerivTimeoutError } from '../src/deriv/clie
 import { requestOtpUrl } from '../src/deriv/auth.ts';
 import type { TickResponse } from '../src/deriv/protocol.ts';
 import { readConfig } from '../src/config.ts';
-import { Store } from '../src/db.ts';
+import { openStore } from '../src/db-node.ts';
 import { Supervisor } from '../src/agents/supervisor.ts';
 import { createServer } from '../src/server.ts';
 import { DEFAULT_SETTINGS } from '../src/settings.ts';
@@ -71,7 +71,7 @@ test('autenticação: OTP exige Bearer PAT + Deriv-App-ID e é único por conex�
 
 // ------------------------------------------------------------------ fluxo completo
 async function bootSupervisor(withCreds: boolean, settings: Partial<typeof DEFAULT_SETTINGS> = {}) {
-  const store = new Store(':memory:');
+  const store = openStore(':memory:');
   store.saveSettings({ ...structuredClone(DEFAULT_SETTINGS), executionMode: withCreds ? 'demo' : 'signals', ...settings, risk: { ...DEFAULT_SETTINGS.risk, cooldownSeconds: 0, ...(settings.risk ?? {}) } });
   const sup = new Supervisor({ config: cfg(withCreds), store, requestTimeoutMs: 1500, buyTimeoutMs: 400, backoffMs: [50, 100] });
   sup.start(100);
@@ -166,7 +166,7 @@ test('sem credenciais: somente dados públicos, sem saldo e sem ordens', async (
 });
 
 test('reinício: lock de instância e recuperação de estados interrompidos', async () => {
-  const store = new Store(':memory:');
+  const store = openStore(':memory:');
   const a = store.createTrade({ signal_key: 'x1', account_mode: 'demo', account_id: null, symbol: 'R_100', contract_type: 'CALL', duration: 5, duration_unit: 't', stake: 1, currency: 'USD' })!;
   const b = store.createTrade({ signal_key: 'x2', account_mode: 'demo', account_id: null, symbol: 'R_100', contract_type: 'CALL', duration: 5, duration_unit: 't', stake: 1, currency: 'USD' })!;
   store.updateTrade(b.id, { state: 'BUY_SENT' });
@@ -226,7 +226,7 @@ test('API: autenticação, validação e controles atuando no backend', async ()
 });
 
 test('API: CORS liberado apenas para o painel do Cloudflare Pages configurado', async () => {
-  const store = new Store(':memory:');
+  const store = openStore(':memory:');
   const c = { ...cfg(false), allowedOrigins: ['https://mohamed-ia-analiser.pages.dev'] };
   const sup = new Supervisor({ config: c, store });
   const server = createServer(c, store, sup);

@@ -18,7 +18,7 @@ export interface AppConfig {
   allowedOrigins: string[];
 }
 
-function str(env: NodeJS.ProcessEnv, key: string): string | null {
+function str(env: Record<string, string | undefined>, key: string): string | null {
   const v = env[key];
   if (v === undefined) return null;
   const t = v.trim();
@@ -32,7 +32,7 @@ export function loadDotEnv(file = '.env'): void {
   }
 }
 
-export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+export function readConfig(env: Record<string, string | undefined> = process.env): AppConfig {
   const port = Number(str(env, 'PORT') ?? '8080');
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
     throw new Error(`PORT inválida: ${env.PORT}`);
@@ -59,7 +59,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     allowRealTrading: str(env, 'ALLOW_REAL_TRADING') === 'true',
     allowedOrigins: parseOrigins(str(env, 'ALLOWED_ORIGINS')),
-    frontendDir: path.resolve(import.meta.dirname, '../../frontend'),
+    // import.meta.dirname não existe no Cloudflare Workers (lá o painel é servido como assets)
+    frontendDir: import.meta.dirname ? path.resolve(import.meta.dirname, '../../frontend') : '',
   };
 }
 
