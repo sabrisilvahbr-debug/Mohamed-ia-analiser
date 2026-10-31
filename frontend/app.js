@@ -53,7 +53,7 @@ async function api(path, opts = {}) {
 }
 
 function logout(msg) {
-  if (direct) { localStorage.removeItem('otc.mode'); location.reload(); return; }
+  if (direct) { localStorage.setItem('otc.mode', 'server'); location.reload(); return; }
   token = '';
   localStorage.removeItem('otc.admin'); sessionStorage.removeItem('otc.admin');
   streamAbort?.abort();
@@ -521,6 +521,8 @@ $('#btn-diag').addEventListener('click', async () => {
 });
 $('#btn-ack').addEventListener('click', async () => { try { const r = await api('/api/control/ack', { method: 'POST' }); msg(r.haltReasons.length ? `Travas restantes: ${r.haltReasons.join('; ')}` : 'Nenhuma trava ativa.'); dDiag.close(); } catch (e) { msg(e.message, true); } });
 $('#btn-logout').addEventListener('click', () => { dDiag.close(); logout(''); });
+function syncLogoutLabel() { $('#btn-logout').textContent = direct ? 'Conectar ao meu servidor (motor 24h)' : 'Sair deste aparelho'; }
+$('#btn-diag').addEventListener('click', syncLogoutLabel);
 
 // ---------------------------------------------------------------- boot
 setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour12: false }); if (state) { renderMarket(state); } }, 1000);
@@ -551,7 +553,9 @@ $('#login-direct').addEventListener('click', bootDirect);
   $('#login-server').value = server;
   $('#where').textContent = same ? '' : (server ? `Motor: ${server}` : '');
   $('#login-direct-wrap').hidden = same;
-  if (!same && localStorage.getItem('otc.mode') === 'direct') { bootDirect(); return; }
+  // Site estático (Vercel/Pages) sem motor configurado: abre direto, sem tela de senha.
+  // A tela de login só aparece se o usuário escolher conectar ao próprio servidor.
+  if (!same && localStorage.getItem('otc.mode') !== 'server') { bootDirect(); return; }
   if (!token || (!same && !server)) { $('#login').hidden = false; return; }
   try { boot(await api('/api/state')); } catch { if (token) { $('#login').hidden = false; $('#login-error').textContent = 'Servidor indisponível no momento.'; } }
 })();
