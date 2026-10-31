@@ -136,20 +136,28 @@ let state = null;
 let streamAbort = null;
 let streamOk = false;
 
+/**
+ * Atualização ao vivo: tenta streaming (SSE). Se nenhum dado chegar em 6 s — caso dos links
+ * trycloudflare.com, que não suportam SSE — passa a consultar /api/state a cada 2 s.
+ */
+let liveMode = 'stream';
 async function stream() {
   let delay = 1000;
-  while (token) {
+  let failuresWithoutData = 0;
+  while (token && liveMode === 'stream') {
     streamAbort = new AbortController();
+    let gotData = false;
+    const watchdog = setTimeout(() => { if (!gotData) streamAbort.abort(); }, 6000);
     try {
       const res = await fetch(base() + '/api/stream', { headers: { Authorization: `Bearer ${token}` }, signal: streamAbort.signal });
-      if (res.status === 401) return logout('Sessão inválida.');
+      if (res.status === 401) { clearTimeout(watchdog); return logout('Sessão inválida.'); }
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-      streamOk = true; delay = 1000; renderStreamPill();
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       let buf = '';
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
+        if (!gotData) { gotData = true; clearTimeout(watchdog); streamOk = true; delay = 1000; failuresWithoutData = 0; renderStreamPill(); }
         buf += value;
         let i;
         while ((i = buf.indexOf('\n\n')) >= 0) {
@@ -160,12 +168,23 @@ async function stream() {
         }
       }
     } catch (e) {
-      if (e.name === 'AbortError' && !token) return;
+      if (e.name === 'AbortError' && !token) { clearTimeout(watchdog); return; }
     }
+    clearTimeout(watchdog);
+    if (!gotData && ++failuresWithoutData >= 2) { liveMode = 'poll'; break; }
     streamOk = false; renderStreamPill();
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(delay * 2, 15000);
     try { render(await api('/api/state')); } catch { /* servidor fora do ar */ }
+  }
+  if (token && liveMode === 'poll') await poll();
+}
+
+async function poll() {
+  while (token && liveMode === 'poll') {
+    try { render(await api('/api/state')); streamOk = true; } catch { streamOk = false; }
+    renderStreamPill();
+    await new Promise((r) => setTimeout(r, document.hidden ? 10000 : 2000));
   }
 }
 
@@ -185,7 +204,7 @@ function onEvent(type, data) {
 
 function renderStreamPill() {
   const p = $('#pill-stream');
-  p.textContent = streamOk ? 'Painel ao vivo' : 'Painel reconectando';
+  p.textContent = !streamOk ? 'Painel reconectando' : liveMode === 'poll' ? 'Painel: atualiza a cada 2 s' : 'Painel ao vivo';
   p.className = 'pill ' + (streamOk ? 'ok' : 'warn');
 }
 

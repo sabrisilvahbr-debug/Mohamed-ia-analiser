@@ -1,4 +1,6 @@
-# Produção na VM Oracle: app + Caddy (HTTPS automático via Let's Encrypt)
+# Produção na VM Oracle.
+# Padrão: app + cloudflared (link https://xxxx.trycloudflare.com, sem abrir portas na VM).
+# Opcional: perfil "caddy" (HTTPS próprio em IP.sslip.io; exige portas 80/443 abertas).
 services:
   app:
     build:
@@ -11,15 +13,23 @@ services:
     expose:
       - "8080"
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      - app
+    command: tunnel --no-autoupdate --url http://app:8080 ${CF_EXTRA_ARGS:-}
+
   caddy:
     image: caddy:2
+    profiles: ["caddy"]
     restart: unless-stopped
     depends_on:
       - app
     ports:
       - "80:80"
       - "443:443"
-    command: caddy reverse-proxy --from ${OTC_DOMAIN} --to app:8080
+    command: caddy reverse-proxy --from ${OTC_DOMAIN:-localhost} --to app:8080
     volumes:
       - caddy-data:/data
       - caddy-config:/config

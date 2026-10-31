@@ -69,4 +69,4 @@ npm run backtest -- R_100 5000 0.95   # backtest com dados reais da Deriv
 
 ## Deploy
 
-Motor 24h na VM Oracle Always Free + painel com link fixo no Cloudflare Pages. Veja [docs/DEPLOY.md](docs/DEPLOY.md).
+Motor 24h na VM Oracle Always Free, acessível por link `trycloudflare.com` (ou painel com link fixo no Cloudflare Pages). Veja [docs/DEPLOY.md](docs/DEPLOY.md).
