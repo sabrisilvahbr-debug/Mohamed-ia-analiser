@@ -73,8 +73,9 @@ export function parseOrigins(raw: string | null): string[] {
   });
 }
 
+/** App ID + PAT bastam: sem DERIV_ACCOUNT_ID, a conta DEMO é descoberta via GET /accounts. */
 export function hasDerivCredentials(c: AppConfig): boolean {
-  return Boolean(c.deriv.appId && c.deriv.pat && c.deriv.accountId);
+  return Boolean(c.deriv.appId && c.deriv.pat);
 }
 
 /** Lista de valores secretos que nunca podem aparecer em logs. */

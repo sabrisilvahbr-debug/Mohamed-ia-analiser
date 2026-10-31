@@ -66,7 +66,7 @@ test('Cloudflare: Durable Object roda o motor completo (dados, saldo, ordem demo
   const mod = await import('../../cloudflare/src/worker.ts');
   const f = fakeCtx();
   const env: Record<string, unknown> = {
-    ADMIN_TOKEN: 'admin-token-0123456789', DERIV_APP_ID: '12345', DERIV_PAT: 'test-pat-0123456789', DERIV_ACCOUNT_ID: 'DOT90004580',
+    ADMIN_TOKEN: 'admin-token-0123456789', DERIV_APP_ID: '12345', DERIV_PAT: 'test-pat-0123456789', // sem DERIV_ACCOUNT_ID: conta demo descoberta via GET /accounts
     DERIV_PUBLIC_WS: mock.publicUrl, DERIV_REST_BASE: mock.rest_base, ALLOW_REAL_TRADING: 'false',
   };
   const engine = new mod.TraderEngine(f.ctx as never, env as never);

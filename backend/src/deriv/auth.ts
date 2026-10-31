@@ -6,6 +6,28 @@
  * Cada OTP é de uso único e expira em 120 s, por isso é pedido a cada (re)conexão.
  */
 export interface DerivAuthConfig { restBase: string; appId: string; pat: string; accountId: string }
+export type DerivCredentials = Omit<DerivAuthConfig, 'accountId'> & { accountId: string | null };
+
+export interface OptionsAccount { account_id: string; account_type: string | null; status: string | null; currency: string | null }
+
+/** GET /trading/v1/options/accounts — formato conforme exemplos da documentação (data[].account_id, account_type, status). */
+export async function fetchAccounts(c: Omit<DerivAuthConfig, 'accountId'>, fetchImpl: typeof fetch = fetch): Promise<OptionsAccount[]> {
+  const res = await fetchImpl(`${c.restBase}/trading/v1/options/accounts`, { headers: headers({ ...c, accountId: '' }), signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`lista de contas recusada: ${await readError(res)}`);
+  const body = (await res.json()) as { data?: unknown };
+  const list = Array.isArray(body.data) ? body.data : body.data ? [body.data] : [];
+  return list.flatMap((a): OptionsAccount[] => {
+    if (typeof a !== 'object' || a === null) return [];
+    const r = a as Record<string, unknown>;
+    if (typeof r.account_id !== 'string') return [];
+    return [{ account_id: r.account_id, account_type: typeof r.account_type === 'string' ? r.account_type : null, status: typeof r.status === 'string' ? r.status : null, currency: typeof r.currency === 'string' ? r.currency : null }];
+  });
+}
+
+/** Escolhe a conta DEMO ativa. Nunca escolhe uma conta real automaticamente. */
+export function pickDemoAccount(accounts: readonly OptionsAccount[]): OptionsAccount | null {
+  return accounts.find((a) => a.account_type === 'demo' && (a.status === null || a.status === 'active')) ?? null;
+}
 
 export type AccountMode = 'demo' | 'real' | 'desconhecido';
 
@@ -44,11 +66,12 @@ export async function requestOtpUrl(c: DerivAuthConfig, fetchImpl: typeof fetch 
   return wsUrl;
 }
 
-/** GET /trading/v1/options/accounts — usado apenas no diagnóstico. A documentação não publica o formato da resposta. */
-export async function listAccounts(c: DerivAuthConfig, fetchImpl: typeof fetch = fetch): Promise<{ ok: boolean; status: number; summary: string }> {
-  const res = await fetchImpl(`${c.restBase}/trading/v1/options/accounts`, { headers: headers(c), signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) return { ok: false, status: res.status, summary: await readError(res) };
-  const body = (await res.json()) as { data?: unknown };
-  const n = Array.isArray(body.data) ? body.data.length : null;
-  return { ok: true, status: res.status, summary: n === null ? 'resposta recebida' : `${n} conta(s) retornada(s)` };
+/** Resumo para o diagnóstico: IDs e tipos das contas (não são segredos). */
+export async function listAccounts(c: Omit<DerivAuthConfig, 'accountId'>, fetchImpl: typeof fetch = fetch): Promise<{ ok: boolean; summary: string }> {
+  try {
+    const acc = await fetchAccounts(c, fetchImpl);
+    return { ok: acc.length > 0, summary: acc.length ? acc.map((a) => `${a.account_id} (${a.account_type ?? '?'}${a.status ? ', ' + a.status : ''})`).join(' • ') : 'nenhuma conta Options retornada' };
+  } catch (e) {
+    return { ok: false, summary: (e as Error).message };
+  }
 }
